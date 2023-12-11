@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 '''
 USER = "" # Flattrade user id
 PWD = "" # Password
-TOTP_KEY = ""
+TOTP_KEY = "" 
 API_KEY = ""
 API_SECRET = ""
 RURL = "https://127.0.0.1:5000/?"
@@ -61,12 +61,34 @@ async def get_authcode():
                         "Key":"",
                         "APIKey": API_KEY,
                         "PAN_DOB": pyotp.TOTP(TOTP_KEY).now(),
-                        "Sid" : sid
+                        "Sid" : sid,
+                        "Override": ""
                         }
                     )    
             
             if response.status_code == 200:
-                redirect_url = response.json().get("RedirectURL", "")
+                response_data = response.json()
+                if response.json().get("emsg") == "DUPLICATE":
+                    response =  await client.post(
+                        routes["ftauth"],
+                        json = {
+                                "UserName": USER,
+                                "Password": encode_item(PWD),
+                                "App":"",
+                                "ClientID":"",
+                                "Key":"",
+                                "APIKey": API_KEY,
+                                "PAN_DOB": pyotp.TOTP(TOTP_KEY).now(),
+                                "Sid" : sid,
+                                "Override": "Y"
+                                }
+                            )
+                    if response.status_code == 200:
+                        response_data = response.json()
+                    else:
+                        logging.info(response.text)
+
+                redirect_url = response_data.get("RedirectURL", "")
 
                 query_params = parse_qs(urlparse(redirect_url).query)
                 if 'code' in query_params:
@@ -74,7 +96,7 @@ async def get_authcode():
                     logging.info(code)
                     return code
             else:
-                logging.info(response.json())
+                logging.info(response.text)
         else:
             logging.info(response.text)
 
@@ -90,13 +112,14 @@ async def get_apitoken(code):
             )
         
         if response.status_code == 200:
-            token = response.json().get("token", "")
+            token = response.json().get("token", "")            
             return token
         else:
-            logging.info(response.json())
+            logging.info(response.text)
 
 if __name__ == "__main__":
 
     code = asyncio.run(get_authcode())
+    print(f"CODE :: {code}")
     token = asyncio.run(get_apitoken(code))
-    print(token)
+    print(f"SESSION_TOKEN :: {token}")
