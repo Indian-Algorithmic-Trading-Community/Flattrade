@@ -68,7 +68,7 @@ async def get_authcode():
             
             if response.status_code == 200:
                 response_data = response.json()
-                if response.json().get("emsg") == "DUPLICATE":
+                if response_data.get("emsg") == "DUPLICATE":
                     response =  await client.post(
                         routes["ftauth"],
                         json = {
